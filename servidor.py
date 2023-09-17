@@ -1,18 +1,24 @@
+
 from flask import Flask,jsonify,request
-from calculaTfidf import ListaRecomendacaoHistorico,ListaRecomendacaoBusca
+from calculaTfidf import ListaRecomendacaoHistoricoMongo,ListaRecomendacaoBuscaMongo
 
 app = Flask(__name__)
 
-@app.route('/processa_recomendacao', methods=['GET'])
-def processa_recomendacao():
+@app.route('/processa_recomendacao_mongo', methods=['GET'])
+def processa_recomendacao_mongo():
     video_id = request.args.get('query')
-    resposta = ListaRecomendacaoHistorico(video_id)
+    lista = request.args.get('playlist')
+    lista2 = lista.replace("[", "")
+    lista3 = lista2.replace("]", "")
+    lista4 = lista3.replace("\"", "")
+    listaFinal = lista4.split(",")
+    resposta = ListaRecomendacaoHistoricoMongo(video_id,listaFinal)
     return jsonify(resposta)
 
-@app.route('/processa_busca', methods=['GET'])
-def processa_busca():
+@app.route('/processa_busca_mongo', methods=['GET'])
+def processa_busca_mongo():
     frase_busca = request.args.get('query')
-    resposta = ListaRecomendacaoBusca(frase_busca)
+    resposta = ListaRecomendacaoBuscaMongo(frase_busca)
     return jsonify(resposta)
 
 @app.route("/")

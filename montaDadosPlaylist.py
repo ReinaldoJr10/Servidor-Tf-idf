@@ -1,8 +1,11 @@
 import concurrent.futures
+
+from pymongo.server_api import ServerApi
 from pytube import YouTube, contrib
 import json
 import pegaTranscricoesVideos
 from functools import partial
+import pymongo
 
 def get_video_ids_playlist(playlist_id):
     try:
@@ -28,7 +31,6 @@ def video_info_id_transcricao(playlist,video_id):
             "Duracao": yt.length,
             "Id da Playlist": playlist,
             "Id do video": yt.video_id,
-            "Palvras-chave":yt.keywords,
             "Titulo": yt.title,
             "URL da miniatura": yt.thumbnail_url,
             "URL do video": video_url,
@@ -45,7 +47,6 @@ def video_info_id_transcricao(playlist,video_id):
             "Duracao": yt.length,
             "Id da Playlist": playlist,
             "Id do video": yt.video_id,
-            "Palvras-chave":yt.keywords,
             "Titulo": yt.title,
             "URL da miniatura": yt.thumbnail_url,
             "URL do video": video_url,
@@ -65,7 +66,6 @@ def video_info_id(playlist,video_id):
             "Duracao": yt.length,
             "Id da Playlist": playlist,
             "Id do video": yt.video_id,
-            "Palvras-chave":yt.keywords,
             "Titulo": yt.title,
             "URL da miniatura": yt.thumbnail_url,
             "URL do video": video_url,
@@ -80,14 +80,12 @@ def video_info_id(playlist,video_id):
             "Duracao": yt.length,
             "Id da Playlist": playlist,
             "Id do video": yt.video_id,
-            "Palvras-chave":yt.keywords,
             "Titulo": yt.title,
             "URL da miniatura": yt.thumbnail_url,
             "URL do video": video_url,
             "Visualizacoes": yt.views,
         }
         return video_info
-
 
 def processa_video_transcricao(playlist,video_id):
     try:
@@ -107,9 +105,27 @@ def processa_video(playlist, video_id):
 
 def processa_dados_transcricao():
     lista_playlist_id = ["PLvE-ZAFRgX8hnECDn1v9HNTI71veL3oW0",
-                     "PLpaKFn4Q4GMOBAeqC1S5_Fna_Y5XaOQS2",
-                     "PLHz_AreHm4dkBs-795Dsgvau_ekxg8g1r"]  
+                         "PLrOyM49ctTx8HWnxWRBtKrfcuf7ew_3nm",
+                         "PLpaKFn4Q4GMOBAeqC1S5_Fna_Y5XaOQS2",
+                         "PLotiGT9CNo0M2qJ4Vw0gqBhVlaI9yB_S7",
+                         "PLHz_AreHm4dkBs-795Dsgvau_ekxg8g1r",
+                         "PL-tm4n6ffcbOxTXnyg3IX08QdfKqjT4qF",
+                         "PLntvgXM11X6pi7mW0O4ZmfUI1xDSIbmTm",
+                         "PLbIBj8vQhvm0VY5YrMrafWaQY2EnJ3j8H",
+                         "PLtQM10PgmGogjn0cikgWi8wpQUnV6ERkY",
+                         "PLrOyM49ctTx_AMgNGQaic10qQJpTpXfn_"]
+    lista_playlist_nome = ["Curso Python",
+                           "Probabilidade e Estatística",
+                           "Curso C",
+                           "Computação em nuvem",
+                           "Curso Mysql",
+                           "Cibersegurança",
+                           "Curso Javascript",
+                           "Padrões de projetos",
+                           "Fundamentos IA",
+                           "Estrutura de dados"]
     lista_videos_playlist=[]
+    cont=0
 
     for playlist_id in lista_playlist_id:
         video_urls = get_video_ids_playlist(playlist_id)
@@ -118,21 +134,40 @@ def processa_dados_transcricao():
 
         print("Processamento concluído!"+str(playlist_id))
 
-        objeto_json = {playlist_id: resultados}
+        objeto_json = {"id":cont,"Nome":lista_playlist_nome[cont],"idPlaylist":playlist_id,"Dados": resultados}
+        cont+=1
         lista_videos_playlist.append(objeto_json)
 
-    with open("BancoBusca.json", "w") as arquivo_json:
-        json.dump(lista_videos_playlist, arquivo_json, indent=4)
-    print("Arquivo 'BancoBusca.json' criado com sucesso!")
+    uri = "mongodb://localhost:27017/"
+    cliente = pymongo.MongoClient(uri)
+    db = cliente["BdVideosTranscricao"]
+    colecao = db["VideoDados"]
+    colecao.insert_many(lista_videos_playlist)
+    print("Dados salvos no banco de dados com mongodb")
 
+    cliente.close()
 
 def processa_dados():
     lista_playlist_id = ["PLvE-ZAFRgX8hnECDn1v9HNTI71veL3oW0",
+                         "PLrOyM49ctTx8HWnxWRBtKrfcuf7ew_3nm",
                          "PLpaKFn4Q4GMOBAeqC1S5_Fna_Y5XaOQS2",
-                         "PLHz_AreHm4dkBs-795Dsgvau_ekxg8g1r"]
+                         "PLotiGT9CNo0M2qJ4Vw0gqBhVlaI9yB_S7",
+                         "PLHz_AreHm4dkBs-795Dsgvau_ekxg8g1r",
+                         "PL-tm4n6ffcbOxTXnyg3IX08QdfKqjT4qF",
+                         "PLntvgXM11X6pi7mW0O4ZmfUI1xDSIbmTm",
+                         "PLbIBj8vQhvm0VY5YrMrafWaQY2EnJ3j8H",
+                         "PLtQM10PgmGogjn0cikgWi8wpQUnV6ERkY",
+                         "PLrOyM49ctTx_AMgNGQaic10qQJpTpXfn_"]
     lista_playlist_nome = ["Curso Python",
+                           "Probabilidade e Estatística",
                            "Curso C",
-                           "Curso Mysql"]
+                           "Computação em nuvem",
+                           "Curso Mysql",
+                           "Cibersegurança",
+                           "Curso Javascript",
+                           "Padrões de projetos",
+                           "Fundamentos IA",
+                           "Estrutura de dados"]
     lista_videos_playlist = []
 
     cont=0
@@ -156,3 +191,4 @@ def processa_dados():
     print("Arquivo 'playlist.json' criado com sucesso!")
 
 processa_dados()
+processa_dados_transcricao()

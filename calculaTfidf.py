@@ -1,31 +1,34 @@
 import json
+
+import pymongo
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-def ListaRecomendacaoHistorico(id):
-    with open('BancoBusca.json', 'r') as arquivo:
-        dados = json.load(arquivo)
 
-    listaListasPalavras=[]
-    listaTitulos = []
-    listaVideoIds = []
-    listaVideoInfo = []
-    indice=0
-    cont=0
+def ListaRecomendacaoHistoricoMongo(idVideo,listaPlaylist):
+    listaVideosTranscricao = []
+    listaVideosInfo = []
+    indice = 0
+    cont = 0
 
-    for instancia in dados:
-        for chave, valores in instancia.items():
-            for valor in valores:
-                if(id==valor["Id do video"]):
-                    indice=cont                    
-                listaTitulos.append(valor["Titulo"])
-                listaVideoIds.append(valor["Id do video"])
-                listaListasPalavras.append(valor["Transcricao"])
-                del valor["Transcricao"]
-                listaVideoInfo.append(valor)
-                cont+=1
+    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = cliente["BdVideosTranscricao"]
+    colecao = db["VideoDados"]
+    documentos = colecao.find()
 
-    documentos = [' '.join(lista) for lista in listaListasPalavras]
+
+    for doc in documentos:
+        for item in doc["Dados"]:
+            if(item["Id do video"]==idVideo):
+                indice=cont
+            listaVideosTranscricao.append(item["Transcricao"])
+            aux=item
+            del aux["Transcricao"]
+            listaVideosInfo.append(aux)
+            cont+=1
+    cliente.close()
+
+    documentos = [' '.join(lista) for lista in listaVideosTranscricao]
 
     # Crie um objeto TfidfVectorizer
     vectorizer = TfidfVectorizer()
@@ -34,68 +37,57 @@ def ListaRecomendacaoHistorico(id):
     vetores_tfidf = vectorizer.fit_transform(documentos)
 
     vetor_item_interagido = vetores_tfidf[indice]
+
     # Calcula a similaridade de cosseno entre 'vetor_item_interagido' e todos os outros vetores TF-IDF
     similaridades = cosine_similarity(vetores_tfidf, vetor_item_interagido)
 
     # Obtém os índices dos itens mais semelhantes, classificados em ordem decrescente de similaridade
     indices_itens_similares = similaridades.argsort(axis=0)[:-1, 0][::-1]
 
-    itens_recomendados = [listaTitulos[i] for i in indices_itens_similares]
-    itens_ids = [listaVideoIds[i] for i in indices_itens_similares]
-    itens_info = [listaVideoInfo[i] for i in indices_itens_similares]
+    itens_info = [listaVideosInfo[i] for i in indices_itens_similares]
 
-    print(listaTitulos[indice])
+    # print(texto)
     print("--------------------------------------")
-    for i in range(10):
-        print(itens_recomendados[i])
-        print(itens_ids[i])
+    print("Busca realizada!!!")
+    # for i in range(10):
+    #    print(itens_recomendados[i])
+    #    print(itens_ids[i])
     return itens_info
-        
-def ListaRecomendacaoBusca(texto):
-    with open('BancoBusca.json', 'r') as arquivo:
-        dados = json.load(arquivo)
 
-    listaListasPalavras = []
-    listaTitulos = []
-    listaVideoIds = []
-    listaVideoInfo = []
+def ListaRecomendacaoBuscaMongo(texto):
 
-    for instancia in dados:
-        for chave, valores in instancia.items():
-            for valor in valores:
-                # Verifique se o texto fornecido está presente na transcrição do vídeo                
-                listaTitulos.append(valor["Titulo"])
-                listaVideoIds.append(valor["Id do video"])
-                listaListasPalavras.append(valor["Transcricao"])
-                del valor["Transcricao"]
-                listaVideoInfo.append(valor)
-    listaTitulos.append("aux titulo")
-    listaVideoIds.append("aux id")
+    listaVideosTranscricao = []
+    listaVideosInfo = []
 
-    documentos = [' '.join(lista) for lista in listaListasPalavras]
+    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = cliente["BdVideosTranscricao"]
+    colecao = db["VideoDados"]
+    documentos = colecao.find()
+
+    for doc in documentos:
+        for item in doc["Dados"]:
+            listaVideosTranscricao.append(item["Transcricao"])
+            aux = item
+            del aux["Transcricao"]
+            listaVideosInfo.append(aux)
+    cliente.close()
+
+    documentos = [' '.join(lista) for lista in listaVideosTranscricao]
     documentos.append(texto)
 
-    # Crie um objeto TfidfVectorizer
+
     vectorizer = TfidfVectorizer()
 
-    # Ajuste o vetorizador aos documentos e transforme-os em vetores TF-IDF
     vetores_tfidf = vectorizer.fit_transform(documentos)
 
-    vetor_item_interagido = vetores_tfidf[len(listaListasPalavras)]
+    vetor_item_interagido = vetores_tfidf[len(listaVideosTranscricao)]
 
-    # Calcula a similaridade de cosseno entre 'vetor_item_interagido' e todos os outros vetores TF-IDF
     similaridades = cosine_similarity(vetores_tfidf, vetor_item_interagido)
 
-    # Obtém os índices dos itens mais semelhantes, classificados em ordem decrescente de similaridade
     indices_itens_similares = similaridades.argsort(axis=0)[:-1, 0][::-1]
 
-    itens_recomendados = [listaTitulos[i] for i in indices_itens_similares]
-    itens_ids = [listaVideoIds[i] for i in indices_itens_similares]
-    itens_info = [listaVideoInfo[i] for i in indices_itens_similares]
+    itens_info = [listaVideosInfo[i] for i in indices_itens_similares]
 
-    print(texto)
     print("--------------------------------------")
-    for i in range(10):
-        print(itens_recomendados[i])
-        print(itens_ids[i])
+    print("Busca realizada!!!")
     return itens_info
