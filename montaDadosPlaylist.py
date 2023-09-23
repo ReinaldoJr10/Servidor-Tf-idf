@@ -141,6 +141,7 @@ def processa_dados_transcricao():
     uri = "mongodb://localhost:27017/"
     cliente = pymongo.MongoClient(uri)
     db = cliente["BdVideosTranscricao"]
+    db["VideoDados"].drop()
     colecao = db["VideoDados"]
     colecao.insert_many(lista_videos_playlist)
     print("Dados salvos no banco de dados com mongodb")
