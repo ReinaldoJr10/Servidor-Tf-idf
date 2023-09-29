@@ -1,7 +1,10 @@
 import pymongo
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from ProcessaLista import AnalisaVetor
+
+def AnalisaVetor(VetorIds: list) -> dict:
+    tamanhoVet = len(VetorIds)
+    return {VetorIds[i]: (tamanhoVet - i) / tamanhoVet for i in range(tamanhoVet)}
 
 
 def ListaVideosRelacionados(idVideo):
@@ -127,6 +130,26 @@ def ListaVideosRecomendados(listaVideos: list):
     resposta = [vetInfo[item] for item in listaChaves]
     return resposta
 
+def ListaVideosHistoricos(listaVideos: list):
+    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = cliente["BdVideosTranscricao"]
+    colecao = db["VideoDados"]
+
+    listaVideosInfo = []
+
+    for item in listaVideos:
+        res = colecao.find_one({"Dados.Id do video": item})
+        if res:
+            video_info = next((v for v in res["Dados"] if v["Id do video"] == item), None)
+            if video_info:
+                del video_info["Transcricao"]
+                listaVideosInfo.append(video_info)
+
+    listaVideosInfo = listaVideosInfo[::-1]
+
+    cliente.close()
+
+    return listaVideosInfo
 
 def ListaVideosBusca(texto):
     listaVideosTranscricao = []

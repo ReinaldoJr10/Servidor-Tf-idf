@@ -1,6 +1,5 @@
 import concurrent.futures
 
-from pymongo.server_api import ServerApi
 from pytube import YouTube, contrib
 import json
 import pegaTranscricoesVideos
