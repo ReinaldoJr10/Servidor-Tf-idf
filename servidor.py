@@ -1,7 +1,10 @@
 from flask import Flask,jsonify,request
+from flask_cors import CORS
 from calculaTfidf import ListaVideosRelacionados,ListaVideosBusca,ListaVideosRecomendados,ListaVideosHistoricos
 
 app = Flask(__name__)
+
+CORS(app)
 
 @app.route('/processa_relacionados', methods=['GET'])
 def processa_relacionados():
