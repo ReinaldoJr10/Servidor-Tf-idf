@@ -1,6 +1,8 @@
 import pymongo
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from VariavelMongodb import recuperar_variavel_ambiente
+import time
 
 def AnalisaVetor(VetorIds: list) -> dict:
     tamanhoVet = len(VetorIds)
@@ -13,10 +15,16 @@ def ListaVideosRelacionados(idVideo):
     indice = 0
     cont = 0
 
-    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    tempo_inicio = time.time()
+
+    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
     db = cliente["BdVideosTranscricao"]
     colecao = db["VideoDados"]
     documentos = colecao.find()
+
+    tempo_fim = time.time()
+    tempo_decorrido = tempo_fim - tempo_inicio
+    print("tempo: "+str(tempo_decorrido))
 
     for doc in documentos:
         for item in doc["Dados"]:
@@ -98,7 +106,7 @@ def ListaRecomendacaoSemelhancaVideos(idVideo, colecao, listaVideosIds, listaVid
     return itens_ids, itens_info_dict
 
 def ListaVideosRecomendados(listaVideos: list):
-    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
     db = cliente["BdVideosTranscricao"]
     colecao = db["VideoDados"]
 
@@ -131,7 +139,7 @@ def ListaVideosRecomendados(listaVideos: list):
     return resposta
 
 def ListaVideosHistoricos(listaVideos: list):
-    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
     db = cliente["BdVideosTranscricao"]
     colecao = db["VideoDados"]
 
@@ -155,7 +163,7 @@ def ListaVideosBusca(texto):
     listaVideosTranscricao = []
     listaVideosInfo = []
 
-    cliente = pymongo.MongoClient("mongodb://localhost:27017/")
+    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
     db = cliente["BdVideosTranscricao"]
     colecao = db["VideoDados"]
     documentos = colecao.find()
