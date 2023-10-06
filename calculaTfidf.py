@@ -1,8 +1,39 @@
-import pymongo
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from VariavelMongodb import recuperar_variavel_ambiente
-import time
+import json,os
+from montaDadosPlaylist import ProcessaPlaylist
+
+def QtdPlaylistBd() -> int:
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+    return len(dados)
+
+def verifica_inclusao_playlist(idPlaylist:str) -> bool:
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+    for i in range(len(dados)):
+        if(dados[i]["idPlaylist"]==idPlaylist):
+            return True
+    return False
+
+def AdicionaPlaylistBd(idPlaylist:str,nomePlaylist:str):
+    resultado=verifica_inclusao_playlist(idPlaylist)
+    if resultado:
+        return "ja esta na playlist"
+    else:
+        json_novo=ProcessaPlaylist(idPlaylist,nomePlaylist)
+        my_dir = os.path.dirname(__file__)
+        json_caminho = os.path.join(my_dir, 'dados.json')
+        with open(json_caminho, 'r+') as arquivo:
+            dados = json.load(arquivo)
+            dados.append(json_novo)
+            arquivo.seek(0)
+            json.dump(dados, arquivo, indent=4)
+        return "valor adicionado"+str(QtdPlaylistBd())
 
 def AnalisaVetor(VetorIds: list) -> dict:
     tamanhoVet = len(VetorIds)
@@ -10,32 +41,25 @@ def AnalisaVetor(VetorIds: list) -> dict:
 
 
 def ListaVideosRelacionados(idVideo):
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
     listaVideosTranscricao = []
     listaVideosInfo = []
     indice = 0
     cont = 0
 
-    tempo_inicio = time.time()
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
 
-    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
-    db = cliente["BdVideosTranscricao"]
-    colecao = db["VideoDados"]
-    documentos = colecao.find()
-
-    tempo_fim = time.time()
-    tempo_decorrido = tempo_fim - tempo_inicio
-    print("tempo: "+str(tempo_decorrido))
-
-    for doc in documentos:
-        for item in doc["Dados"]:
-            if (item["Id do video"] == idVideo):
+    for i in range(len(dados)):
+        for y in range(len(dados[i]["Dados"])):
+            if (dados[i]["Dados"][y]["Id do video"] == idVideo):
                 indice = cont
-            listaVideosTranscricao.append(item["Transcricao"])
-            aux = item
+            listaVideosTranscricao.append(dados[i]["Dados"][y]["Transcricao"])
+            aux = dados[i]["Dados"][y]
             del aux["Transcricao"]
             listaVideosInfo.append(aux)
-            cont += 1
-    cliente.close()
+            cont+=1
 
     documentos = [' '.join(lista) for lista in listaVideosTranscricao]
 
@@ -60,23 +84,22 @@ def ListaVideosRelacionados(idVideo):
     print("Recomendacao realizada!!!")
     return itens_info
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import pymongo
-
-def calcularVetorTfidf(colecao):
+def calcularVetorTfidf():
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
     listaVideosTranscricao = []
     listaVideosIds = []
     listaVideosInfo = []
     cont = 0
 
-    res = colecao.find()
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
 
-    for doc in res:
-        for item in doc["Dados"]:
-            listaVideosTranscricao.append(item["Transcricao"])
-            listaVideosIds.append(item["Id do video"])
-            aux = item.copy()  # Use .copy() to avoid modifying the original dictionary
+    for i in range(len(dados)):
+        for y in range(len(dados[i]["Dados"])):
+            listaVideosTranscricao.append(dados[i]["Dados"][y]["Transcricao"])
+            listaVideosIds.append(dados[i]["Dados"][y]["Id do video"])
+            aux=dados[i]["Dados"][y]
             del aux["Transcricao"]
             listaVideosInfo.append(aux)
             cont += 1
@@ -88,7 +111,7 @@ def calcularVetorTfidf(colecao):
 
     return listaVideosIds, listaVideosInfo, vetores_tfidf
 
-def ListaRecomendacaoSemelhancaVideos(idVideo, colecao, listaVideosIds, listaVideosInfo, vetores_tfidf):
+def ListaRecomendacaoSemelhancaVideos(idVideo, listaVideosIds, listaVideosInfo, vetores_tfidf):
     indice = listaVideosIds.index(idVideo)
     vetor_item_interagido = vetores_tfidf[indice]
 
@@ -106,16 +129,14 @@ def ListaRecomendacaoSemelhancaVideos(idVideo, colecao, listaVideosIds, listaVid
     return itens_ids, itens_info_dict
 
 def ListaVideosRecomendados(listaVideos: list):
-    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
-    db = cliente["BdVideosTranscricao"]
-    colecao = db["VideoDados"]
 
-    listaVideosIds, listaVideosInfo, vetores_tfidf = calcularVetorTfidf(colecao)
+    listaVideosIds, listaVideosInfo, vetores_tfidf = calcularVetorTfidf()
     listaDicionarios = []
+
 
     for item in listaVideos:
         print(item)
-        vetIds, vetInfo = ListaRecomendacaoSemelhancaVideos(item, colecao, listaVideosIds, listaVideosInfo, vetores_tfidf)
+        vetIds, vetInfo = ListaRecomendacaoSemelhancaVideos(item, listaVideosIds, listaVideosInfo, vetores_tfidf)
         auxs = AnalisaVetor(vetIds)
         print(auxs)
         if item in auxs:
@@ -131,50 +152,53 @@ def ListaVideosRecomendados(listaVideos: list):
             else:
                 somaTotalDicionarios[item] = itemDicionario[item]
 
-    cliente.close()
     somaTotalDicionarios = dict(sorted(somaTotalDicionarios.items(), key=lambda item: item[1], reverse=True))
     listaChaves = list(somaTotalDicionarios.keys())
     [listaChaves.remove(item) for item in listaVideos if item in listaChaves]
     resposta = [vetInfo[item] for item in listaChaves]
     return resposta
 
+def ler_dados_do_arquivo_json():
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
+    with open(json_caminho, 'r', encoding='utf-8') as arquivo:
+        dados_json = json.load(arquivo)
+    return dados_json
+
 def ListaVideosHistoricos(listaVideos: list):
-    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
-    db = cliente["BdVideosTranscricao"]
-    colecao = db["VideoDados"]
+    # Lê os dados do arquivo JSON
+    dados = ler_dados_do_arquivo_json()
 
     listaVideosInfo = []
 
     for item in listaVideos:
-        res = colecao.find_one({"Dados.Id do video": item})
-        if res:
-            video_info = next((v for v in res["Dados"] if v["Id do video"] == item), None)
-            if video_info:
-                del video_info["Transcricao"]
-                listaVideosInfo.append(video_info)
+        for i in range(len(dados)):
+            for y in range(len(dados[i]["Dados"])):
+                if dados[i]["Dados"][y]["Id do video"] == item:
+                    aux = dados[i]["Dados"][y]
+                    del aux["Transcricao"]
+                    listaVideosInfo.append(aux)
 
     listaVideosInfo = listaVideosInfo[::-1]
-
-    cliente.close()
 
     return listaVideosInfo
 
 def ListaVideosBusca(texto):
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
     listaVideosTranscricao = []
     listaVideosInfo = []
 
-    cliente = pymongo.MongoClient(recuperar_variavel_ambiente("MURI"))
-    db = cliente["BdVideosTranscricao"]
-    colecao = db["VideoDados"]
-    documentos = colecao.find()
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
 
-    for doc in documentos:
-        for item in doc["Dados"]:
-            listaVideosTranscricao.append(item["Transcricao"])
-            aux = item
+    for i in range(len(dados)):
+        for y in range(len(dados[i]["Dados"])):
+            listaVideosTranscricao.append(dados[i]["Dados"][y]["Transcricao"])
+            aux = dados[i]["Dados"][y]
             del aux["Transcricao"]
             listaVideosInfo.append(aux)
-    cliente.close()
+
 
     documentos = [' '.join(lista) for lista in listaVideosTranscricao]
     documentos.append(texto)

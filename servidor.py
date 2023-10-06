@@ -1,6 +1,6 @@
 from flask import Flask,jsonify,request
 from flask_cors import CORS
-from calculaTfidf import ListaVideosRelacionados,ListaVideosBusca,ListaVideosRecomendados,ListaVideosHistoricos
+from calculaTfidf import ListaVideosRelacionados,ListaVideosBusca,ListaVideosRecomendados,ListaVideosHistoricos,AdicionaPlaylistBd
 
 app = Flask(__name__)
 
@@ -44,6 +44,13 @@ def processa_historico():
 def processa_busca():
     frase_busca = request.args.get('query')
     resposta = ListaVideosBusca(frase_busca)
+    return jsonify(resposta)
+
+@app.route(rule='/adiciona_playlist',methods=['GET'])
+def adiciona_playlist():
+    idPlaylist = request.args.get('query')
+    nomePlaylist = request.args.get('nome')
+    resposta = AdicionaPlaylistBd(idPlaylist,nomePlaylist)
     return jsonify(resposta)
 
 @app.route("/")

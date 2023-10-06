@@ -1,10 +1,9 @@
 import concurrent.futures
-
+import os
 from pytube import YouTube, contrib
 import json
 import pegaTranscricoesVideos
 from functools import partial
-import pymongo
 
 def get_video_ids_playlist(playlist_id):
     try:
@@ -137,15 +136,10 @@ def processa_dados_transcricao():
         cont+=1
         lista_videos_playlist.append(objeto_json)
 
-    uri = "mongodb://localhost:27017/"
-    cliente = pymongo.MongoClient(uri)
-    db = cliente["BdVideosTranscricao"]
-    db["VideoDados"].drop()
-    colecao = db["VideoDados"]
-    colecao.insert_many(lista_videos_playlist)
-    print("Dados salvos no banco de dados com mongodb")
+    with open("dados.json", "w") as arquivo_json:
+        json.dump(lista_videos_playlist, arquivo_json, indent=4)
+    print("Arquivo 'dados.json' criado com sucesso!")
 
-    cliente.close()
 
 def processa_dados():
     lista_playlist_id = ["PLvE-ZAFRgX8hnECDn1v9HNTI71veL3oW0",
@@ -190,5 +184,19 @@ def processa_dados():
         json.dump(lista_videos_playlist, arquivo_json, indent=4)
     print("Arquivo 'playlist.json' criado com sucesso!")
 
-processa_dados()
-processa_dados_transcricao()
+def QtdPlaylistBd() -> int:
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+    return len(dados)
+
+def ProcessaPlaylist(idPlaylist:str,nomePlaylist:str):
+    video_urls = get_video_ids_playlist(idPlaylist)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        resultados = list(executor.map(partial(processa_video_transcricao, idPlaylist), video_urls))
+
+    indice=QtdPlaylistBd()
+    json_novo={"id": indice, "Nome": nomePlaylist, "idPlaylist": idPlaylist, "Dados": resultados}
+    return json_novo
+
