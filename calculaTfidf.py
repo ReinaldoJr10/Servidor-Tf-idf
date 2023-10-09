@@ -1,7 +1,7 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import json,os
-from montaDadosPlaylist import ProcessaPlaylist
+from montaDadosPlaylist import ProcessaPlaylist,ProcessaPlaylistFirebase
 
 def QtdPlaylistBd() -> int:
     my_dir = os.path.dirname(__file__)
@@ -20,21 +20,87 @@ def verifica_inclusao_playlist(idPlaylist:str) -> bool:
             return True
     return False
 
-def AdicionaPlaylistBd(idPlaylist:str,nomePlaylist:str):
+def verifica_inclusao_firebase(idPlaylist:str):
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'playlist.json')
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+    for i in range(len(dados)):
+        obj=dados[i]
+        chaves=obj.keys()
+        for item in chaves:
+            if(item==idPlaylist):
+                return True
+    return False
+
+def verifica_inclusao_sugestoes(idPlaylist:str) -> bool:
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'sugestoes.json')
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+        for item in dados:
+            if(item["id"]==idPlaylist):
+                return True
+    return False
+
+def AdicionaPlaylistSugestoes(idPlaylist:str,nomePlaylist:str):
     resultado=verifica_inclusao_playlist(idPlaylist)
     if resultado:
-        return "ja esta na playlist"
+        return "playlist esta no banco de dados"
     else:
-        json_novo=ProcessaPlaylist(idPlaylist,nomePlaylist)
-        my_dir = os.path.dirname(__file__)
-        json_caminho = os.path.join(my_dir, 'dados.json')
-        with open(json_caminho, 'r+') as arquivo:
-            dados = json.load(arquivo)
-            dados.append(json_novo)
-            arquivo.seek(0)
-            json.dump(dados, arquivo, indent=4)
-        return "valor adicionado"+str(QtdPlaylistBd())
+        resultado2=verifica_inclusao_sugestoes(idPlaylist)
+        if resultado2:
+            return "playlist aguardando moderacao"
+        else:
+            json_novo= {"id":idPlaylist,"nome" : nomePlaylist}
+            my_dir = os.path.dirname(__file__)
+            json_caminho = os.path.join(my_dir, 'sugestoes.json')
+            with open(json_caminho, 'r+') as arquivo:
+                dados = json.load(arquivo)
+                dados.append(json_novo)
+                arquivo.seek(0)
+                json.dump(dados, arquivo, indent=4)
+            return "valor adicionado as sugestões"
 
+def AdicionaPlaylistBd():
+    my_dir = os.path.dirname(__file__)
+    json_sugestoes = os.path.join(my_dir, 'sugestoes.json')
+    with open(json_sugestoes, 'r') as arquivo:
+        lista_de_json = json.load(arquivo)
+        for item in lista_de_json:
+            resultado = verifica_inclusao_playlist(item["id"])
+            if resultado:
+                print( "ja esta na playlist")
+            else:
+                json_novo = ProcessaPlaylist(item["id"],item["nome"])
+                my_dir = os.path.dirname(__file__)
+                json_caminho = os.path.join(my_dir, 'dados.json')
+                with open(json_caminho, 'r+') as arquivo2:
+                    dados = json.load(arquivo2)
+                    dados.append(json_novo)
+                    arquivo2.seek(0)
+                    json.dump(dados, arquivo2, indent=4)
+                print("valor adicionado" + str(QtdPlaylistBd()))
+
+def AdicionaPlaylistFirebase():
+    my_dir = os.path.dirname(__file__)
+    json_sugestoes = os.path.join(my_dir, 'sugestoes.json')
+    with open(json_sugestoes, 'r') as arquivo:
+        lista_de_json = json.load(arquivo)
+        for item in lista_de_json:
+            resultado = verifica_inclusao_firebase(item["id"])
+            if resultado:
+                print( "ja esta na playlist")
+            else:
+                json_novo = ProcessaPlaylistFirebase(item["id"],item["nome"])
+                my_dir = os.path.dirname(__file__)
+                json_caminho = os.path.join(my_dir, 'playlist.json')
+                with open(json_caminho, 'r+') as arquivo2:
+                    dados = json.load(arquivo2)
+                    dados.append(json_novo)
+                    arquivo2.seek(0)
+                    json.dump(dados, arquivo2, indent=4)
+                print("valor adicionado")
 def AnalisaVetor(VetorIds: list) -> dict:
     tamanhoVet = len(VetorIds)
     return {VetorIds[i]: (tamanhoVet - i) / tamanhoVet for i in range(tamanhoVet)}
@@ -111,6 +177,37 @@ def calcularVetorTfidf():
 
     return listaVideosIds, listaVideosInfo, vetores_tfidf
 
+def calcularVetorTfidfRestrita(listaPlaylists):
+    my_dir = os.path.dirname(__file__)
+    json_caminho = os.path.join(my_dir, 'dados.json')
+    listaVideosTranscricao = []
+    listaVideosIds = []
+    listaVideosInfo = []
+    cont = 0
+
+    with open(json_caminho, 'r') as arquivo_json:
+        dados = json.load(arquivo_json)
+
+    print(len(dados))
+    for item in dados:
+        if item["idPlaylist"] not in listaPlaylists:
+            print("pulou")
+        else:
+            for y in range(len(item["Dados"])):
+                listaVideosTranscricao.append(item["Dados"][y]["Transcricao"])
+                listaVideosIds.append(item["Dados"][y]["Id do video"])
+                aux=item["Dados"][y]
+                del aux["Transcricao"]
+                listaVideosInfo.append(aux)
+                cont += 1
+
+    documentos = [' '.join(lista) for lista in listaVideosTranscricao]
+
+    vectorizer = TfidfVectorizer()
+    vetores_tfidf = vectorizer.fit_transform(documentos)
+
+    return listaVideosIds, listaVideosInfo, vetores_tfidf
+
 def ListaRecomendacaoSemelhancaVideos(idVideo, listaVideosIds, listaVideosInfo, vetores_tfidf):
     indice = listaVideosIds.index(idVideo)
     vetor_item_interagido = vetores_tfidf[indice]
@@ -131,6 +228,36 @@ def ListaRecomendacaoSemelhancaVideos(idVideo, listaVideosIds, listaVideosInfo, 
 def ListaVideosRecomendados(listaVideos: list):
 
     listaVideosIds, listaVideosInfo, vetores_tfidf = calcularVetorTfidf()
+    listaDicionarios = []
+
+
+    for item in listaVideos:
+        print(item)
+        vetIds, vetInfo = ListaRecomendacaoSemelhancaVideos(item, listaVideosIds, listaVideosInfo, vetores_tfidf)
+        auxs = AnalisaVetor(vetIds)
+        print(auxs)
+        if item in auxs:
+            del auxs[item]
+            del vetInfo[item]
+        listaDicionarios.append(auxs)
+
+    somaTotalDicionarios = {}
+    for itemDicionario in listaDicionarios:
+        for item in itemDicionario:
+            if item in somaTotalDicionarios:
+                somaTotalDicionarios[item] += itemDicionario[item]
+            else:
+                somaTotalDicionarios[item] = itemDicionario[item]
+
+    somaTotalDicionarios = dict(sorted(somaTotalDicionarios.items(), key=lambda item: item[1], reverse=True))
+    listaChaves = list(somaTotalDicionarios.keys())
+    [listaChaves.remove(item) for item in listaVideos if item in listaChaves]
+    resposta = [vetInfo[item] for item in listaChaves]
+    return resposta
+
+def ListaVideosRecomendadosRestrita(listaVideos: list,listaPLaylists:list):
+
+    listaVideosIds, listaVideosInfo, vetores_tfidf = calcularVetorTfidfRestrita(listaPLaylists)
     listaDicionarios = []
 
 

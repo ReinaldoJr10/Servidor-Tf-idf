@@ -200,3 +200,13 @@ def ProcessaPlaylist(idPlaylist:str,nomePlaylist:str):
     json_novo={"id": indice, "Nome": nomePlaylist, "idPlaylist": idPlaylist, "Dados": resultados}
     return json_novo
 
+def ProcessaPlaylistFirebase(idPlaylist:str,nomePlaylist:str):
+    video_urls = get_video_ids_playlist(idPlaylist)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        resultados = list(executor.map(partial(processa_video, idPlaylist), video_urls))
+
+    json_novo = {
+        idPlaylist: resultados,
+        "nome": nomePlaylist
+    }
+    return json_novo

@@ -1,6 +1,8 @@
+import json
+
 from flask import Flask,jsonify,request
 from flask_cors import CORS
-from calculaTfidf import ListaVideosRelacionados,ListaVideosBusca,ListaVideosRecomendados,ListaVideosHistoricos,AdicionaPlaylistBd
+from calculaTfidf import ListaVideosRelacionados,ListaVideosBusca,ListaVideosRecomendados,ListaVideosRecomendadosRestrita,ListaVideosHistoricos,AdicionaPlaylistSugestoes
 
 app = Flask(__name__)
 
@@ -14,7 +16,7 @@ def processa_relacionados():
 
 @app.route('/processa_trilha', methods=['GET'])
 def processa_trilha():
-    lista = request.args.get('playlist')
+    lista = request.args.get('historico')
     lista2 = lista.replace("[", "")
     lista3 = lista2.replace("]", "")
     lista4 = lista3.replace("\"", "")
@@ -26,9 +28,28 @@ def processa_trilha():
     resposta = ListaVideosRecomendados(listaFinal)
     return jsonify(resposta)
 
+@app.route('/processa_trilha_restrita', methods=['GET'])
+def processa_trilha_restrita():
+    lista = request.args.get('historico')
+    lista2 = lista.replace("[", "")
+    lista3 = lista2.replace("]", "")
+    lista4 = lista3.replace("\"", "")
+    lista4 = lista4.replace(" ","")
+    listaFinal = lista4.split(",")
+    listaplaylist=request.args.get('playlists')
+    lista2 = listaplaylist.replace("[", "")
+    lista3 = lista2.replace("]", "")
+    lista4 = lista3.replace("\"", "")
+    lista4 = lista4.replace(" ", "")
+    listaFinal2 = lista4.split(",")
+    print(listaFinal)
+    print(listaFinal2)
+    resposta = ListaVideosRecomendadosRestrita(listaFinal,listaFinal2)
+    return jsonify(resposta)
+
 @app.route('/processa_historico', methods=['GET'])
 def processa_historico():
-    lista = request.args.get('playlist')
+    lista = request.args.get('historico')
     lista2 = lista.replace("[", "")
     lista3 = lista2.replace("]", "")
     lista4 = lista3.replace("\"", "")
@@ -46,11 +67,11 @@ def processa_busca():
     resposta = ListaVideosBusca(frase_busca)
     return jsonify(resposta)
 
-@app.route(rule='/adiciona_playlist',methods=['GET'])
-def adiciona_playlist():
-    idPlaylist = request.args.get('query')
+@app.route(rule='/adiciona_sugestao',methods=['GET'])
+def adiciona_sugestao():
+    idPlaylist = request.args.get('id')
     nomePlaylist = request.args.get('nome')
-    resposta = AdicionaPlaylistBd(idPlaylist,nomePlaylist)
+    resposta = AdicionaPlaylistSugestoes(idPlaylist,nomePlaylist)
     return jsonify(resposta)
 
 @app.route("/")
